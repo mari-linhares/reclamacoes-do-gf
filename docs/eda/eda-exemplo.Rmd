@@ -5,6 +5,7 @@ output: html_notebook
 
 ```{r warning=FALSE}
 library(tidyverse)
+library(stringr)
 ```
 
 # EDA dos dados de estimativa de insatisfação
@@ -53,6 +54,8 @@ avaliacoes %>%
 
 ```
 
+Só consideramos consenso caso a diferença entre o terceiro quartil e primeiro quartil seja < 1. Para analisar os léxicos iremos
+
 ```{r}
 avaliacoes %>% 
     ggplot(aes(x = reorder(id_reclamacao, insatisfacao, fun = median), y = insatisfacao)) + 
@@ -68,3 +71,63 @@ avaliacoes %>%
     geom_jitter()
 ```
 
+### contar numero de revisoes por reclamacao
+
+```{r}
+avaliacoes %>% group_by(id_reclamacao) %>% 
+          summarize(count=n()) %>% 
+          ggplot(aes(x=reorder(id_reclamacao, count), y=count)) + geom_bar(stat = "identity")
+
+```
+
+### contar numero de revisoes por aluno
+
+```{r}
+avaliacoes %>% group_by(avaliador) %>% 
+  summarize(count=n()) %>% 
+  ggplot(aes(x=reorder(avaliador, count), y=count)) + geom_bar(stat = "identity")
+```
+
+## Análise das reclamações completas
+
+### Pegando dados
+```{r}
+rec_completo = read_csv("../../data/reclamacoes-raw/reclamacoes-raw.csv", 
+                      col_types = "cccc")
+
+glimpse(rec_completo)
+```
+
+### salvando comprimento da reclamacao e nome do órgão
+
+```{r}
+# Comprimento da reclamação e colocando na coluna "comprimento_reclamacao"
+# salvando nome legivel do orgao da reclamação na coluna "nome_orgao"
+rec_completo <- rec_completo %>%  
+    mutate(comprimento_reclamacao = str_length(reclamacao), 
+           nome_orgao = str_split(link, "/") %>% map_chr(~ .[[5]]))
+
+# remove coluna orgao já que não é mais necessária
+rec_completo <- subset(rec_completo, select = -c(orgao))
+```
+
+### Boxplot: orgao vs tamanho da reclamacao
+
+```{r}
+rec_completo %>% group_by(nome_orgao) %>% 
+  ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot()
+```
+
+
+### Número de reclamações por órgão
+
+```{r}
+rec_completo %>% group_by(nome_orgao) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()
+```
+
+```{r}
+rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z]{2,}\\b")
+
+```
