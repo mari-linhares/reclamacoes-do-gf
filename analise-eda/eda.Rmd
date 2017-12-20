@@ -15,7 +15,7 @@ library(stringr)
 Dados coletados na sala. 
 
 ```{r}
-avaliacoes = read_csv("../../data/experimento-avaliacao-humana/experimento-de-avaliacao.csv", 
+avaliacoes = read_csv("../data/experimento-avaliacao-humana/experimento-de-avaliacao.csv", 
                       col_types = "ccd")
 
 avaliacoes = avaliacoes %>% 
@@ -28,7 +28,7 @@ glimpse(avaliacoes)
 
 ## Limpeza
 
-Explicar
+Excluimos as avaliações 1 a 5 pois estas foram utilizadas para a calibragem de nota
 
 ```{r}
 avaliacoes = avaliacoes %>% 
@@ -37,6 +37,8 @@ avaliacoes = avaliacoes %>%
 
 
 ## Outro subtítulo
+
+Aqui temos alguns dados gerais como a média e mediana de respostas por reclamação, assim como a quantidade de respostas por reclamação. Esse dado é utilizado para saber se a amostra que pegamos é representativa o suficiente para podermos afirmar que há um consenso em relação à insatisfação de uma reclamação
 
 ```{r}
 avaliacoes %>% 
@@ -54,7 +56,7 @@ avaliacoes %>%
 
 ```
 
-Só consideramos consenso caso a diferença entre o terceiro quartil e primeiro quartil seja < 1. Para analisar os léxicos iremos
+A partir de tais dados, é possível dizer que houve um consenso no sentido de que existe um consenso se a diferença entre o terceiro quartil e primeiro quartil seja < 1. Para analisar os léxicos iremos normalizar o resultado dado pelos mesmos para que eles se adequem à nossa escala. Em seguida, consideraremos um acerto se o resultado normalizado estiver dentro do primeiro e terceiro quartil.
 
 ```{r}
 avaliacoes %>% 
@@ -82,6 +84,8 @@ avaliacoes %>% group_by(id_reclamacao) %>%
 
 ### contar numero de revisoes por aluno
 
+O dado de quantas revisões cada aluno fez pode ser útil para estimar o esforço e a velocidade de revisão de uma reclamação.
+
 ```{r}
 avaliacoes %>% group_by(avaliador) %>% 
   summarize(count=n()) %>% 
@@ -92,7 +96,7 @@ avaliacoes %>% group_by(avaliador) %>%
 
 ### Pegando dados
 ```{r}
-rec_completo = read_csv("../../data/reclamacoes-raw/reclamacoes-raw.csv", 
+rec_completo = read_csv("../data/reclamacoes-raw/reclamacoes-raw.csv", 
                       col_types = "cccc")
 
 glimpse(rec_completo)
@@ -113,6 +117,8 @@ rec_completo <- subset(rec_completo, select = -c(orgao))
 
 ### Boxplot: orgao vs tamanho da reclamacao
 
+Neste boxplot podemos ter uma noção da quantidade de caracteres que as reclamações tem. Decidimos dividir por orgão para sabermos se existe alguma relação entre o mesmo e o tamanho das reclamaçõs. Pelo gráfico, nós acreditamos que sim.
+
 ```{r}
 rec_completo %>% group_by(nome_orgao) %>% 
   ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot()
@@ -127,7 +133,26 @@ rec_completo %>% group_by(nome_orgao) %>%
   ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()
 ```
 
+### Criacao de uma nova coluna numero_de_capslock
+
 ```{r}
 rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z]{2,}\\b")
 
+```
+
+### Criacao de uma nova coluna texto_capslock
+```{r}
+rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z]{2,}\\b")
+
+```
+
+
+### Boxplot: Orgao vs quantidade de capslock
+
+Também decidimos avaliar a quantidade de palavras em capslock nas reclamações, já que talvez este possa também ser utilizado para medir insatisfação. Dividimos por orgão para sabermos se existe uma diferença consideravel neste quesito, e pelo gráfico podemos ver que realmente alguns orgãos recebem muito mais reclamações com capslock do que outras.
+Vale a pena observar também que siglas foram inclusas como palavras com capslock, o que pode enviezar tal quesito
+
+```{r}
+rec_completo %>% group_by(nome_orgao) %>% 
+  ggplot(aes(x=reorder(nome_orgao, numero_de_capslock), y=numero_de_capslock)) + geom_boxplot()
 ```
