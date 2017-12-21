@@ -136,13 +136,14 @@ rec_completo %>% group_by(nome_orgao) %>%
 ### Criacao de uma nova coluna numero_de_capslock
 
 ```{r}
-rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z]{2,}\\b")
+rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
 
 ```
 
 ### Criacao de uma nova coluna texto_capslock
 ```{r}
-rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z]{2,}\\b")
+rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
+
 
 ```
 
