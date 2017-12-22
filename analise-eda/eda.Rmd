@@ -1,90 +1,161 @@
 ---
-title: "R Notebook"
+title: "EDA dos dados de estimativa de insatisfação"
 output: html_notebook
 ---
 
+**Grupo:**
+
+  - Iaron Araújo
+  - José Benardi
+  - Marianne Linhares
+  - Rafael Klynger
+  - Ravi Leite
+
+Neste arquivo nós buscamos explorar o uso de sumários estatísticos e visualização de dados para descrever os dois conjuntos de dados que temos num momento:
+ 
+ - dados do experimento de validação da avaliação por humanos: [experimento-avaliacao-humana](https://github.com/nazareno/reclamacoes-do-gf/tree/master/data/experimento-avaliacao-humana).
+ - dados de 320 reclamações do site www.reclameaqui.com.br de 16 órgãos distintos: [reclamacoes-raw](https://github.com/nazareno/reclamacoes-do-gf/tree/master/data/reclamacoes-raw ).
+ 
+Como temos dois conjuntos de dados separamos nossa análise em dois momentos, iremos começar pela análise dos dados [experimento-avaliacao-humana](https://github.com/nazareno/reclamacoes-do-gf/tree/master/data/experimento-avaliacao-humana).
+
+## Análise dos dados "experimento-avaliacao-humana"
+
+### Dependências
+
+Antes de falarmos dos dados iremos importar as dependências para executar tanto esta análise quanto a próxima.
+ 
 ```{r warning=FALSE}
-library(tidyverse)
-library(stringr)
+library(tidyverse)  # carrega os pacotes ggplot2, readr, tidyr e dplyr
+library(stringr)  # biblioteca para lidar com strings
 ```
 
-# EDA dos dados de estimativa de insatisfação
+### Importando os dados
 
-## Subtítulo
+Estes dados foram coletados na sala de aula e consistem do nosso entendimento sobre a instatisfação presente em reclamações do site www.reclameaqui.com.br.
 
-Dados coletados na sala. 
+Analisamos 15 reclamações, cada reclamação é identificada por um número inteiro único no intervalo [1, 15]. Utilizamos as reclamações de 1 a 5 para calibragem, para assim chegarmos a um "consenso" de que tipo de reclamação é um 2, que tipo de reclamação é um 5, etc.
+
+Cada aluno analisou um número não definido de reclamações e este valor não foi controlado.
 
 ```{r}
+# Importando os dados
 avaliacoes = read_csv("../data/experimento-avaliacao-humana/experimento-de-avaliacao.csv", 
                       col_types = "ccd")
 
+# Renomeando colunas
 avaliacoes = avaliacoes %>% 
     select(avaliador = `Sua matrícula`, 
            id_reclamacao = `Id da reclamação`, 
            insatisfacao = Insatisfação)
 
+# Olhando os dados
+glimpse(avaliacoes)
+
+# Sumário dos dados
+summary(avaliacoes)
+```
+
+Como podemos ver, o dataframe importado tem 3 colunas:
+
+  - avaliador (char): matrícula do aluno que avaliou esta reclamação.
+  - id_reclamacao (char): número inteiro no intervalo de [1, 5] que identifica cada reclamação unicamente.
+  - insatisfacao (dbl): número real de 1 a 5 que identifica a insatisfação avaliada por um certo aluno para uma certa reclamação. Onde 1 é o menor valor de insatisfação identificado e 5 o maior valor de insatisfação.
+
+Temos 178 análises de reclamações no total.
+
+### Limpeza inicial
+
+#### Removendo reclamações de 1 a 5
+
+Como dito anteriormente as reclamações de 1 a 5 foram utilizadas para calibragem, e portanto não iremos utilizá-las.
+
+```{r}
+# Removendo avaliações [1, 5] dos dados
+avaliacoes = avaliacoes %>% 
+    filter(! (id_reclamacao %in% 1:5 ))
+
+# Olhando os dados
 glimpse(avaliacoes)
 ```
 
-## Limpeza
+Agora temos 154 análises de reclamações.
 
-Excluimos as avaliações 1 a 5 pois estas foram utilizadas para a calibragem de nota
+#### Checando inconsistências
+
+É sempre interessante procurar por valores "nulos" no dataframe.
 
 ```{r}
-avaliacoes = avaliacoes %>% 
-    filter(! (id_reclamacao %in% 1:5 ))
+# Checando se há valores faltando por coluna
+sapply(avaliacoes, function(x) sum(is.na(x)))
 ```
 
+Não há valores faltando em nenhuma coluna.
 
-## Outro subtítulo
-
-Aqui temos alguns dados gerais como a média e mediana de respostas por reclamação, assim como a quantidade de respostas por reclamação. Esse dado é utilizado para saber se a amostra que pegamos é representativa o suficiente para podermos afirmar que há um consenso em relação à insatisfação de uma reclamação
+Outra inconsistência que pode vir a ocorrer é algum aluno (avaliador) analisar a mesma reclamação mais de uma vez. Vamos checar por isso utilizando a função duplicated.
 
 ```{r}
-avaliacoes %>% 
-    group_by(id_reclamacao) %>% 
-    count() %>% 
-    ggplot(aes("reclamacoes", n)) + 
-    geom_jitter(width = .05, alpha = .7)
+avaliacoes[duplicated(avaliacoes[,1:2]), ]
+```
 
+Encontramos uma linha, do avaliador 112210437, de fato se procurarmos por este avaliador temos duas "notas" de insatisfação diferentes para a reclamação 10.
+
+```{r}
+avaliacoes[avaliacoes$avaliador == '112210437' & avaliacoes$id_reclamacao == '10', ]
+```
+
+Por enquanto não iremos remover este dado, mas é algo a considerar para os próximos experimentos.
+
+Outro erro manual possível é alguém inserir um dado errado, seja a matrícula, o id da reclamação ou até a nota de instatisfação, mas não conseguimos checar isso de maneira eficáz.
+
+### Número de análises por reclamação 
+
+Como foi dito anteriormente durante a análise das reclamações não foi definido um número de análises que cada aluno deveria fazer, nem quais reclamações cada aluno deveria analisar podendo portanto haver alguma reclamação que tenha sido analisada mais (ou menos) vezes que outras. Nesta subseção buscamos explorar estas possibilidades.
+
+```{r}
+# Função auxiliar para calcular moda (não encontramos uma função builtin no R)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# Calculando média, mediana e moda do número de análises por reclamação
 avaliacoes %>% 
     group_by(id_reclamacao) %>% 
     count() %>%
     ungroup() %>% 
     summarise(media = mean(n), 
-              mediana = median(n))
-
+              mediana = median(n),
+              moda = getmode(n))
 ```
 
-A partir de tais dados, é possível dizer que houve um consenso no sentido de que existe um consenso se a diferença entre o terceiro quartil e primeiro quartil seja < 1. Para analisar os léxicos iremos normalizar o resultado dado pelos mesmos para que eles se adequem à nossa escala. Em seguida, consideraremos um acerto se o resultado normalizado estiver dentro do primeiro e terceiro quartil.
-
-```{r}
-avaliacoes %>% 
-    ggplot(aes(x = reorder(id_reclamacao, insatisfacao, fun = median), y = insatisfacao)) + 
-    geom_boxplot() #+     geom_jitter(width = .1, alpha = .7)
-
-```
-
-
-```{r}
-avaliacoes %>% 
-    group_by(id_reclamacao) %>% 
-    ggplot(aes(reorder(id_reclamacao, insatisfacao,FUN = median), insatisfacao, colour = id_reclamacao)) + 
-    geom_jitter()
-```
-
-### contar numero de revisoes por reclamacao
+Em média cada reclamação foi analisada por 15.4 alunos (ou 15.4 vezes) e 13 foi o número de análises mais recorrentes. Vamos plotar um gráfico para facilitar a visualização.
 
 ```{r}
 avaliacoes %>% group_by(id_reclamacao) %>% 
           summarize(count=n()) %>% 
           ggplot(aes(x=reorder(id_reclamacao, count), y=count)) + geom_bar(stat = "identity")
-
 ```
 
-### contar numero de revisoes por aluno
+De fato podemos ver que a moda é 13, as reclamações 11, 6 e 8 foram análisadas 13 vezes. E também podemos ver que a reclamação 10 foi analisada menos vezes (10 vezes) e a reclamação 9 mais vezes (~24 vezes).
 
-O dado de quantas revisões cada aluno fez pode ser útil para estimar o esforço e a velocidade de revisão de uma reclamação.
+### Número de análises feita por aluno
+
+Outra valor que deve ser "investigado" é o número de análises feitas por alunos, já que é possível que algum aluno tenha analisado muito mais (ou menos) reclamações que os demais alunos e isso acarreta em um certo viés nos dados.
+
+Além disso saber o número de revisões que cada aluno fez pode ser útil para estimar o esforço e a velocidade de revisão de uma reclamação.
+
+```{r}
+# Calculando média, mediana e moda do número de análises feita por aluno
+avaliacoes %>% 
+    group_by(avaliador) %>% 
+    count() %>%
+    ungroup() %>% 
+    summarise(media = mean(n), 
+              mediana = median(n),
+              moda = getmode(n))
+```
+
+Ou seja em média cada aluno fez 6.41 análises, ou em outras palavras cada aluno analisou 6.41 reclamações, e a maioria dos alunos analisaram 7 reclamações.
 
 ```{r}
 avaliacoes %>% group_by(avaliador) %>% 
@@ -92,71 +163,186 @@ avaliacoes %>% group_by(avaliador) %>%
   ggplot(aes(x=reorder(avaliador, count), y=count)) + geom_bar(stat = "identity") + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
 
-## Análise das reclamações completas
+Este gráfico nos ajuda a ver que a grande parte dos alunos analisaram 7 reclamações, 1 aluno analisou apenas 2 reclamações e 2 alunos revisaram 10 reclamações. Acreditamos que um número baixo de análises não é um problema tão grave dado que o aluno estava presente durante a calibragem, e que 3 reclamações a mais não é um valor tão acima dos demais, porém para futuros experimentos acreditamos que vale a pena "controlar" este valor para evitar dados enviesados.
 
-### Pegando dados
+### Valores de insatisfação
+
+Nesta subseção queremos focar num dos pontos principais da pesquisa que é saber se há consenso
+em relação ao grau de insatisfação identificado nas reclamações.
+
+Para tal iremos visualizar os dados através de um boxplot que nos oferece uma maneira fácil e intuitiva de visualizar a distribuição destes dados.
+
 ```{r}
+avaliacoes %>% 
+    ggplot(aes(x = reorder(id_reclamacao, insatisfacao, fun = median), y = insatisfacao)) + 
+    geom_boxplot() #+     geom_jitter(width = .1, alpha = .7)
+```
+
+A partir deste gráfico parece razoável definir consenso como:
+
+**Existe consenso se a diferença entre o terceiro quartil e primeiro quartil é <= 1**.
+
+A partir desta "definição" poderíamos dizer que não houve consenso apenas na reclamação 10. É importante notar que seria interessante usar como base uma explicação/base mais "científica" para de fator definir consenso, estamos apenas dando uma sugestão pelo que vemos neste experimento e parece razoável. 
+
+Podemos também utilizar esta mesma definição no futuro para verificar se os léxicos erraram ou acertaram em sua "análise" verificando se o valor normalizado da saída dos léxicos está entre o primeiro e terceiro quartil.
+
+Como o boxplot não mostra todos os dados realizamos um segundo plot que pode ser visto abaixo para visualizar de fato todas as análises num mesmo gráfico separadas por reclamação.
+
+```{r}
+avaliacoes %>% 
+    group_by(id_reclamacao) %>% 
+    ggplot(aes(reorder(id_reclamacao, insatisfacao, FUN = median), insatisfacao, colour = id_reclamacao)) + 
+    geom_jitter()
+```
+
+A partir do gráfico acima podemos ver em mais detalhes como as reclamações foram analisadas e que o "consenso" não é tão simples quanto parece no gráfico do boxplot. Importante também notar que a reclamação 10, em que aparentemente não houve consenso, foi a reclamação menos analisada (10 pessoa analisaram).
+
+## Análide dos dados "reclamacoes-raw"
+
+### Importando os dados
+
+Foram coletadas reclamações de 16 órgãos com pelo menos 20 reclamações no site www.reclameaqui.com.br. Em seguida foram então escolhidas 20 reclamações de cada órgão aleatoriamente.
+
+Estes dados foram coletados a partir de um script que pode ser encontrado [aqui](https://github.com/nazareno/reclamacoes-do-gf/blob/master/code/coleta_reclamacoes.R).
+
+```{r}
+# Importando os dados
 rec_completo = read_csv("../data/reclamacoes-raw/reclamacoes-raw.csv", 
                       col_types = "cccc")
 
+# Olhando os dados
 glimpse(rec_completo)
+
+# Sumário dos dados
+summary(rec_completo)
 ```
 
-### salvando comprimento da reclamacao e nome do órgão
+Há 320 linhas (esperado já que 20 x 16 = 320), em que cada linha tem 4 colunas:
+  
+  - orgao (char): link para site do órgão da reclamação.
+  - link (char): link para acessar a reclamação.
+  - titulo (char): título da reclamação.
+  - reclamação (char): reclamação em formato textual.
+
+### Limpeza inicial
+
+Iremos primeiramente checar se há valores faltando nas colunas.
 
 ```{r}
-# Comprimento da reclamação e colocando na coluna "comprimento_reclamacao"
-# salvando nome legivel do orgao da reclamação na coluna "nome_orgao"
+# Checando se há valores faltando por coluna
+sapply(rec_completo, function(x) sum(is.na(x)))
+```
+
+Aparentemente o script para obter as reclamações não conseguiu obter (ou não havia essa informação no site) o link para o órgão de todas as reclamações. Além disso é pouco intuitivo trabalhar com o link do órgão, portanto criaremos uma nova coluna contendo apenas o nome do órgão a partir da URL do reclame aqui que tem um campo que representa o órgão.
+
+```{r}
+# Salvando nome legivel do órgão da reclamação na coluna "nome_orgao"
 rec_completo <- rec_completo %>%  
-    mutate(comprimento_reclamacao = str_length(reclamacao), 
-           nome_orgao = str_split(link, "/") %>% map_chr(~ .[[5]]))
+    mutate(nome_orgao = str_split(link, "/") %>% map_chr(~ .[[5]]))
 
-# remove coluna orgao já que não é mais necessária
+# Remove coluna orgao já que não é mais necessária
 rec_completo <- subset(rec_completo, select = -c(orgao))
+
+# Olhando os dados
+glimpse(rec_completo)
+
+# Checando se há valores faltando por coluna
+sapply(rec_completo, function(x) sum(is.na(x)))
 ```
 
-### Boxplot: orgao vs tamanho da reclamacao
+Dessa forma conseguimos remover os valores faltando e temos uma nova coluna chamando nome_orgao que é mais intuitiva.
 
-Neste boxplot podemos ter uma noção da quantidade de caracteres que as reclamações tem. Decidimos dividir por orgão para sabermos se existe alguma relação entre o mesmo e o tamanho das reclamaçõs. Pelo gráfico, nós acreditamos que sim.
+### Criando novas colunas para ajudar na análise
 
-```{r, fig.width = 12, fig.height = 10}
-rec_completo %>% group_by(nome_orgao) %>% 
-  ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot() +  theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
+Algumas colunas serão bastante úteis para as análises, estas são:
+
+Uma coluna chamada comprimento_reclamacao para contar número de caractéres por reclamação.
+```{r}
+# Calculando comprimento da reclamação e salvando a coluna "comprimento_reclamacao"
+rec_completo <- rec_completo %>%  
+    mutate(comprimento_reclamacao = str_length(reclamacao))
 ```
 
-
-### Número de reclamações por órgão
-
-```{r, fig.width = 12, fig.height = 6}
-rec_completo %>% group_by(nome_orgao) %>%
-  summarize(count = n()) %>%
-  ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()             + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
-```
-
-
-### Avaliacao da metrica capslock
-
-O dataframe existente foi expandido com a criacao de uma nova coluna chamada numero_de_capslock, a qual mapeia o numero de palavras em capslock das reclamacoes da coluna reclamacao do mesmo dataframe. O calculo dessa serie de valores incluiu o emprego de uma expressao regular.  
+Uma coluna chamada numero_de_capslock, que mapeia o número de palavras em capslock das reclamações da coluna reclamacao do mesmo dataframe. O cálculo dessa série de valores incluiu o emprego de uma expressão regular.
 
 ```{r}
 rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
-glimpse(rec_completo)
 ```
 
-O dataframe existente foi expandido com a criacao de uma nova coluna chamada texto_capslock, a qual mapeia a lista de palavras em capslock das reclamacoes da coluna reclamacao do mesmo dataframe. O calculo dessa serie de valores incluiu o emprego de uma expressao regular.
+Uma coluna chamada texto_capslock, a qual mapeia a lista de palavras em capslock das reclamações da coluna reclamacao do mesmo dataframe. O cálculo dessa série de valores incluiu o emprego de uma expressão regular.
 
 ```{r}
 rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
+```
+
+```{r}
+# Olhando os dados
 glimpse(rec_completo)
 ```
 
+Agora iremos partir para a análise de fato.
 
-### Boxplot: Orgao vs quantidade de capslock
+### Comprimento da reclamação
 
-Também decidimos avaliar a quantidade de palavras em capslock nas reclamações, já que talvez este possa também ser utilizado para medir insatisfação. Dividimos por orgão para sabermos se existe uma diferença consideravel neste quesito, e pelo gráfico podemos ver que realmente alguns orgãos recebem muito mais reclamações com capslock do que outras.
-Vale a pena observar também que siglas foram inclusas como palavras com capslock, o que pode enviezar tal quesito
+Para iniciar nossa análise iremos observar como é a distribuição do comprimento das reclamações nos dados coletados a partir de um histograma.
+
+```{r, fig.width = 12, fig.height = 10}
+ggplot(data=rec_completo, aes(rec_completo$comprimento_reclamacao)) + 
+  geom_histogram(bins = 30, color="darkblue", fill="lightblue") +
+  labs(x="Comrprimento da Reclamações", y="Count") + scale_x_continuous(breaks=seq(0, 20000, 1000))
+```
+
+Podemos perceber que mais de 50% das reclamações tem menos que 1000 caractéres, e quase todas as reclamações tem menos que 5000 caractéres. Apesar disso existem algumas poucas reclamações com um grande número de reclamações uma delas inclusive tendo quase 20000 caractéres.
+
+### Relação entre o órgão e o comprimento da reclamação
+
+Para verificar a relação entre o órgão e o comprimento das reclamações iremos utilizar um boxplot. Decidimos dividir por orgão para sabermos se existe alguma relação aparente entre os órgãos e o tamanho das reclamaçõs. Pelo gráfico, nós acreditamos que não.
+
+```{r, fig.width = 12, fig.height = 10}
+rec_completo %>% group_by(nome_orgao) %>% 
+  ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot() +  theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8)) + scale_y_continuous(breaks=seq(0, 20000, 1000))
+```
+
+### Número de palavras em capslock
+
+Um dos grupos mencionou a possibilidade utilizar o número de palavras em capslock para analisar/detectar insatisfação, achamos a ideia interessante e buscamos observar o número de palavras em capslock em cada reclamação, segue abaixo um histograma de tal métrica.
+
+```{r, fig.width = 12, fig.height = 10}
+ggplot(data=rec_completo, aes(rec_completo$numero_de_capslock)) + 
+  geom_histogram(bins = 30, color="darkblue", fill="lightblue") +
+  labs(x="Número de palavras em capslock", y="Count") + scale_y_continuous(breaks=seq(0, 250, 10)) +
+  scale_x_continuous(breaks=seq(0, 2000, 10))
+```
+
+Aproximadamente 85% das reclamações tem menos de 10 palavras em capslock. É importante notar também que existem muitas siglas nos dados, por exemplo, se buscarmos apenas as palavras em capslock das reclamações com 5 palavras em capslock, temos:
+
+```{r}
+# Buscando apenas as palavras em capslock das reclamações que tem 5 palavras em capslock
+rec_completo[rec_completo$numero_de_capslock == 5, ]$texto_capslock
+```
+
+Apesar de algumas palavras em capslock aparentemente demostrarem insatisfação outras reclamações, como por exemplo a 1, 4 e 12, apresentam apenas siglas. Portanto acreditamos que se este dado for utilizado seria interessante fazer um filtro para retirar as siglas.
+
+### Relação entre o órgão e número de palavras em capslock
+
+Também decidimos avaliar o número de palavras em capslock nas reclamações por órgão utilizando um boxplot para cada órgão.
 
 ```{r, fig.width = 12, fig.height = 12}
 rec_completo %>% group_by(nome_orgao) %>% 
-  ggplot(aes(x=reorder(nome_orgao, numero_de_capslock), y=numero_de_capslock)) + geom_boxplot() + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
+  ggplot(aes(x=reorder(nome_orgao, numero_de_capslock), y=numero_de_capslock)) + geom_boxplot() + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8)) + labs(x="Órgãos", y="Número de palavras em capslock")
+```
+
+Pelo gráfico podemos ver que parece haver maior relação entre o órgão e o número de palavras em capslock do que relação entre o órgão e o comprimento da reclamação por exemplo.
+
+Porém não é possível presumir se o número de capslock é devido a insatisfação ou não, nós acreditamos que é possível que seja simplesmente mais comum o uso de siglas em certos órgãos que em outros.
+
+O órgão que apresenta uma distribuição mais "esparsa" e que contém reclamações com um grande número de palavras em capslock é o ministério da saúde.
+
+```{r, fig.width = 12, fig.height = 12}
+rec_completo %>% 
+    group_by(nome_orgao) %>% 
+    ggplot(aes(reorder(nome_orgao, numero_de_capslock), numero_de_capslock, colour = nome_orgao)) +
+    geom_jitter() + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) + labs(x="Órgãos", y="Número de palavras em capslock") 
 ```
