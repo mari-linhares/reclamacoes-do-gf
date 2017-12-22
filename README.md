@@ -9,14 +9,9 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 - Rafael Klynger
 - Ravi Leite
 
-## Dependências
+## Entrega
 
-O código é em R. Rode: 
-
-```
-deps = c("tidyverse", "rvest", "stringr")
-install.packages(deps)
-```
+A entrega pode ser acessada na pasta [/analise-eda/](/analise-eda/)
 
 ## TODO
 
