@@ -133,18 +133,21 @@ rec_completo %>% group_by(nome_orgao) %>%
   ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()             + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
 
-### Criacao de uma nova coluna numero_de_capslock
+
+### Avaliacao da metrica capslock
+
+O dataframe existente foi expandido com a criacao de uma nova coluna chamada numero_de_capslock, a qual mapeia o numero de palavras em capslock das reclamacoes da coluna reclamacao do mesmo dataframe. O calculo dessa serie de valores incluiu o emprego de uma expressao regular.  
 
 ```{r}
 rec_completo$numero_de_capslock <- str_count(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
-
+glimpse(rec_completo)
 ```
 
-### Criacao de uma nova coluna texto_capslock
+O dataframe existente foi expandido com a criacao de uma nova coluna chamada texto_capslock, a qual mapeia a lista de palavras em capslock das reclamacoes da coluna reclamacao do mesmo dataframe. O calculo dessa serie de valores incluiu o emprego de uma expressao regular.
+
 ```{r}
 rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z\u00C0-\u00DC]{2,}\\b")
-
-
+glimpse(rec_completo)
 ```
 
 
