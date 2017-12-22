@@ -89,7 +89,7 @@ O dado de quantas revisões cada aluno fez pode ser útil para estimar o esforç
 ```{r}
 avaliacoes %>% group_by(avaliador) %>% 
   summarize(count=n()) %>% 
-  ggplot(aes(x=reorder(avaliador, count), y=count)) + geom_bar(stat = "identity")
+  ggplot(aes(x=reorder(avaliador, count), y=count)) + geom_bar(stat = "identity") + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
 
 ## Análise das reclamações completas
@@ -119,18 +119,18 @@ rec_completo <- subset(rec_completo, select = -c(orgao))
 
 Neste boxplot podemos ter uma noção da quantidade de caracteres que as reclamações tem. Decidimos dividir por orgão para sabermos se existe alguma relação entre o mesmo e o tamanho das reclamaçõs. Pelo gráfico, nós acreditamos que sim.
 
-```{r}
+```{r, fig.width = 12, fig.height = 10}
 rec_completo %>% group_by(nome_orgao) %>% 
-  ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot()
+  ggplot(aes(x=reorder(nome_orgao, comprimento_reclamacao), y=comprimento_reclamacao)) + geom_boxplot() +  theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
 
 
 ### Número de reclamações por órgão
 
-```{r}
+```{r, fig.width = 12, fig.height = 6}
 rec_completo %>% group_by(nome_orgao) %>%
   summarize(count = n()) %>%
-  ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()
+  ggplot(aes(x=reorder(nome_orgao, count), y=count)) + geom_boxplot()             + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
 
 ### Criacao de uma nova coluna numero_de_capslock
@@ -153,7 +153,7 @@ rec_completo$texto_capslock <- str_extract_all(rec_completo$reclamacao, "\\b[A-Z
 Também decidimos avaliar a quantidade de palavras em capslock nas reclamações, já que talvez este possa também ser utilizado para medir insatisfação. Dividimos por orgão para sabermos se existe uma diferença consideravel neste quesito, e pelo gráfico podemos ver que realmente alguns orgãos recebem muito mais reclamações com capslock do que outras.
 Vale a pena observar também que siglas foram inclusas como palavras com capslock, o que pode enviezar tal quesito
 
-```{r}
+```{r, fig.width = 12, fig.height = 12}
 rec_completo %>% group_by(nome_orgao) %>% 
-  ggplot(aes(x=reorder(nome_orgao, numero_de_capslock), y=numero_de_capslock)) + geom_boxplot()
+  ggplot(aes(x=reorder(nome_orgao, numero_de_capslock), y=numero_de_capslock)) + geom_boxplot() + theme(axis.text.x=element_text(color = "black", angle=90, vjust=.8, hjust=0.8))
 ```
