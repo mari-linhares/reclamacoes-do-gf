@@ -47,12 +47,77 @@ reclamacoes_l = reclamacoes %>%
 
 Converte polaridades para escala 0-5
 
+Antes de converter, é importante saber alguns valores chaves para cada lexico, como o minimo, maximo e os quartis
 ```{r}
-# Faça você mesmo. Crie a variável polaridade_normalizada
-# reclamacoes_l = reclamacoes_l %>% 
-#     group_by(lexico) %>% 
-#     mutate(polaridade_normalizada = ALGOAQUI)
+summary(reclamacoes)
+
+
+
+min_op30 = min(reclamacoes$sentimento_op30)
+max_op30 = max(reclamacoes$sentimento_op30)
+first_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.25)
+third_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.75)
+
+min_sent = min(reclamacoes$sentimento_sent)
+max_sent = max(reclamacoes$sentimento_sent)
+first_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.25)
+third_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.75)
 ```
+Agora que temos mais dados, iremos atualizar a tabela reclamacoes
+
+```{r}
+# Tem que ver se isso vai servir pra alguma coisa
+ reclamacoes = reclamacoes %>% 
+     mutate(Min_op30 = min_op30, 
+     Max_op30 = max_op30,
+     Q1_op30 = first_quantile_op30,
+     Q3_op30 = third_quantile_op30,
+     )
+
+ reclamacoes = reclamacoes %>% 
+     mutate(Min_sent = min_sent,
+     Max_sent = max_sent,
+     Q1_sent = first_quantile_sent,
+     Q3_sent = third_quantile_sent
+     )
+     
+```
+
+
+
+Agora Iremos calcular a polaridade_normalizada1 usando a estrategia mais simples
+
+```{r}
+# tentar com ifelse
+
+ polarizeResult1 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes_l$polaridade - Min)/range
+     normalized = 5 - ((arr*5) -0)
+     return(normalized)
+ }
+ reclamacoes_l$polaridade_normalizada1 <-        ifelse(reclamacoes_l$lexico=="sentimento_op30",polarizeResult1(min_op30, max_op30), polarizeResult1(min_sent, max_sent))
+
+     
+```
+
+
+Como os resultados dos lexicos possuem muitos valores extremos, criaremos a polaridade_normalizada2 que ao invés de considerar os minimos e maximos, considera os primeiros e terceiros quartis.
+
+```{r}
+
+polarizeResult2 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes_l$polaridade - Min)/range
+     normalized = 5 - ((arr*5) -0)
+     normalized <- ifelse(arr<0, 5, normalized)
+     normalized <- ifelse(arr>1, 0, normalized)
+     return(normalized)
+ }
+ reclamacoes_l$polaridade_normalizada2 <-        ifelse(reclamacoes_l$lexico=="sentimento_op30",polarizeResult2(first_quantile_op30, third_quantile_op30), polarizeResult1(first_quantile_sent, third_quantile_sent))
+     
+```
+
 
 Calcula o erro por reclamação
 
