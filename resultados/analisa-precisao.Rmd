@@ -1,6 +1,8 @@
 ---
 title: "Análise da precisão"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
@@ -123,7 +125,7 @@ Calcula o erro por reclamação
 
 ```{r}
 reclamacoes_l = reclamacoes_l %>% 
-    mutate(erro = (insatisfação - polaridade_normalizada)**2)
+    mutate(erro = (insatisfação - polaridade_normalizada1)**2)
 ```
 
 
@@ -157,7 +159,28 @@ reclamacoes_l %>%
 Agora um modelo para responder sua pergunta.
 
 ```{r}
+model_erro_lex = lm(erro ~ factor(lexico), data=reclamacoes_l)
+tidy(model_erro_lex, conf.int = TRUE, conf.level = 0.95)
+```
+```{r}
+glance(model_erro_lex)
+```
 
+
+#### Pelos resultados do p.value, cujo alpha está bem acima de 0.05, e do intervalo de confiança, que inclue 0, não parece haver relação entre o léxico e o erro. 
+
+```{r}
+reclamacoes_l = reclamacoes_l %>% # Adicionando predições do modelo ao dataframe
+    add_predictions(model_erro_lex)
+```
+
+```{r}
+reclamacoes_l %>%
+    ggplot(aes(x = lexico)) +
+    geom_line(aes(y = pred), colour = "red") +
+    geom_point(aes(y = erro)) +
+    labs(y = "Erro da predição")
+    
 ```
 
 **Dica** - o texto de resultado que queremos produzir é algo como: 
