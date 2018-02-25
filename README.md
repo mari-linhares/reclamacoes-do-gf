@@ -14,13 +14,13 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 
 ### Possíveis tasks em calcula-Sentimentos.Rmd
 
-- [ ] P1: Ponderar polaridade de acordo com adjetivos. (Adjetivos tem peso maior por geralmente serem mais significativos para determinar contentamento ou gravidade.)
-- [ ] P2: Dividir a polaridade encontrada pelo número de palavras. (Se tiver muitas palavras e for muito positivo devido ao número de palavras será considerado não tão positivo).
+- [x] P1: Ponderar polaridade de acordo com adjetivos. (Adjetivos tem peso maior por geralmente serem mais significativos para determinar contentamento ou gravidade.)
 - [ ] P2: EDA dos léxicos (número de palavras de fato, número de adjetivos)
 
 ### Possíveis tasks
 
-- [ ] P1: Normalização da Polaridade simplismente normalizando entre 0 e 5
+- [ ] P2: Dividir a polaridade encontrada pelo número de palavras. (Se tiver muitas palavras e for muito positivo devido ao número de palavras será considerado não tão positivo).
+- [ ] P1: Normalização da Polaridade simplesmente normalizando entre 0 e 5
 - [ ] P1: Normalização da Polaridade colocar todas as palavras com polaridade positiva como gravidade 0
 - [ ] P1: Normalização da Polaridade normalizando de acordo com os quartis
 - [ ] P2: EDA: Gráficos
