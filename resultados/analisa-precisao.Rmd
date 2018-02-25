@@ -12,17 +12,33 @@ library(broom)
 theme_set(theme_bw())
 ```
 
-## Os dados
+## Carrega os dados
 
 ```{r carrega}
 reclamacoes_raw = read_csv(here("data/reclamacoes-raw/reclamacoes-raw.csv"))
 avaliacoes_raw = read_csv(here("data/avaliacoes/avaliacoes-20180222.csv"))
 sentimentos = read_csv(here("data/sentimentos/sentimento.csv"))
+sentimentos_ponderados = read_csv(here("data/sentimentos/sentimento_ponderado.csv"))
 
+# adicionando id a reclamacoes, comprimento da reclamacao e nome do orgao
 reclamacoes_raw = reclamacoes_raw %>% 
     mutate(id = 1:n(), 
            comprimento_reclamacao = str_length(reclamacao), 
            nome_orgao = str_split(link, "/") %>% map_chr(~ .[[5]]))
+```
+
+### Levando em conta o comprimento das reclamações
+
+O autor do blogpost que estamos nos baseando comentou a respeito de possíveis *outliers* que seriam consequência do tamanho das reclamações. Assim fizemos um teste considerando o tamanho das reclamações mas iremos deixar para averiguar isto mais a fundo no futuro.
+
+```{r levando_comprimento_em_conta}
+sentimentos = sentimentos %>%
+             mutate(s_op30 = sentimento_op30/palavras_op30,
+                    s_sent = sentimento_sent/palavras_sent)
+
+sentimentos_ponderados = sentimentos_ponderados %>%
+             mutate(s_op30 = sentimento_op30/palavras_op30,
+                    s_sent = sentimento_sent/palavras_sent)
 ```
 
 `reclamacoes_l` tem um formato long em vez de wide (explicado [aqui](https://sejdemyr.github.io/r-tutorials/basics/wide-and-long/)).
@@ -35,7 +51,8 @@ avaliacoes = avaliacoes_raw %>%
 
 reclamacoes = reclamacoes_raw %>% 
     inner_join(avaliacoes, by = c("id" = "id_reclamação")) %>% 
-    left_join(sentimentos, by = "id")
+    left_join(sentimentos, by = "id")  %>%
+    left_join(sentimentos_ponderados %>% select(sentimento_ponderado_op30 = sentimento_op30, sentimento_ponderado_sent = sentimento_sent, id), by = "id")
 
 reclamacoes_l = reclamacoes %>%  
     select(-palavras_op30, -palavras_sent) %>% 
@@ -43,70 +60,71 @@ reclamacoes_l = reclamacoes %>%
            value = "polaridade", 
            sentimento_op30, sentimento_sent)
 
+reclamacoes_l_p = reclamacoes %>%  
+    select(-palavras_op30, -palavras_sent) %>% 
+    gather(key = "lexico", 
+           value = "polaridade", 
+           sentimento_ponderado_op30, sentimento_ponderado_sent)
 ```
 
-Converte polaridades para escala 0-5
+## Converte polaridades para escala 0-5
 
-Antes de converter, é importante saber alguns valores chaves para cada lexico, como o minimo, maximo e os quartis
+Antes de converter é importante saber alguns valores chaves para cada léxico, como o mínimo, máximo e os quartis.
+
 ```{r}
 summary(reclamacoes)
 
-
-
 min_op30 = min(reclamacoes$sentimento_op30)
 max_op30 = max(reclamacoes$sentimento_op30)
-first_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.25)
-third_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.75)
+first_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.25, na.rm=T)
+third_quantile_op30 = quantile(reclamacoes$sentimento_op30, 0.75, na.rm=T)
 
 min_sent = min(reclamacoes$sentimento_sent)
 max_sent = max(reclamacoes$sentimento_sent)
-first_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.25)
-third_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.75)
-```
-Agora que temos mais dados, iremos atualizar a tabela reclamacoes
-
-```{r}
-# Tem que ver se isso vai servir pra alguma coisa
- reclamacoes = reclamacoes %>% 
-     mutate(Min_op30 = min_op30, 
-     Max_op30 = max_op30,
-     Q1_op30 = first_quantile_op30,
-     Q3_op30 = third_quantile_op30,
-     )
-
- reclamacoes = reclamacoes %>% 
-     mutate(Min_sent = min_sent,
-     Max_sent = max_sent,
-     Q1_sent = first_quantile_sent,
-     Q3_sent = third_quantile_sent
-     )
-     
+first_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.25, na.rm=T)
+third_quantile_sent = quantile(reclamacoes$sentimento_sent, 0.75, na.rm=T)
 ```
 
+### Normalizando da maneira usual entre 0 e 5.
 
-
-Agora Iremos calcular a polaridade_normalizada1 usando a estrategia mais simples
+Agora Iremos calcular a polaridade_normalizada_usal usando a estrategia mais simples, simplesmente normalizando os valores entre 0 e 5.
 
 ```{r}
-# tentar com ifelse
-
- polarizeResult1 <- function(Min, Max){
+ polarizeResultUsual <- function(Min, Max){
      range = Max - Min
      arr = (reclamacoes_l$polaridade - Min)/range
-     normalized = 5 - ((arr*5) -0)
+     normalized = 5 - ((arr*5) -0)  # invertendo 0-> 5 e 5->0
      return(normalized)
  }
- reclamacoes_l$polaridade_normalizada1 <-        ifelse(reclamacoes_l$lexico=="sentimento_op30",polarizeResult1(min_op30, max_op30), polarizeResult1(min_sent, max_sent))
 
-     
+# reclamacoes long
+reclamacoes_l$polaridade_normalizada_usual <-        ifelse(reclamacoes_l$lexico=="sentimento_op30", polarizeResultUsual(min_op30, max_op30), polarizeResultUsual(min_sent, max_sent))
+
+# reclamacoes op30
+polarizeResultUsual2 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes$sentimento_op30 - Min)/range
+     normalized = 5 - ((arr*5) -0)  # invertendo 0-> 5 e 5->0
+     return(normalized)
+ }
+reclamacoes$sentimento_op30_usual <- polarizeResultUsual2(min_op30, max_op30)
+
+# reclamacoes sent
+polarizeResultUsual3 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes$sentimento_sent - Min)/range
+     normalized = 5 - ((arr*5) -0)  # invertendo 0-> 5 e 5->0
+     return(normalized)
+ }
+reclamacoes$sentimento_sent_usual <- polarizeResultUsual3(min_sent, max_sent)
 ```
 
+### Normalizando utilizando os quartis
 
-Como os resultados dos lexicos possuem muitos valores extremos, criaremos a polaridade_normalizada2 que ao invés de considerar os minimos e maximos, considera os primeiros e terceiros quartis.
+Como os resultados dos léxicos possuem muitos valores extremos, criaremos a polaridade_normalizada_quartil que ao invés de considerar os mínimos e máximos, considera os primeiros e terceiros quartis.
 
 ```{r}
-
-polarizeResult2 <- function(Min, Max){
+polarizeResultQuartil <- function(Min, Max){
      range = Max - Min
      arr = (reclamacoes_l$polaridade - Min)/range
      normalized = 5 - ((arr*5) -0)
@@ -114,22 +132,49 @@ polarizeResult2 <- function(Min, Max){
      normalized <- ifelse(arr>1, 0, normalized)
      return(normalized)
  }
- reclamacoes_l$polaridade_normalizada2 <-        ifelse(reclamacoes_l$lexico=="sentimento_op30",polarizeResult2(first_quantile_op30, third_quantile_op30), polarizeResult1(first_quantile_sent, third_quantile_sent))
-     
+
+# reclamacoes long
+reclamacoes_l$polaridade_normalizada_quartil <-        ifelse(reclamacoes_l$lexico=="sentimento_op30", polarizeResultQuartil(first_quantile_op30, third_quantile_op30), polarizeResultQuartil(first_quantile_sent, third_quantile_sent))
+
+# reclamacoes op30
+polarizeResultQuartil2 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes$sentimento_op30 - Min)/range
+     normalized = 5 - ((arr*5) -0)
+     normalized <- ifelse(arr<0, 5, normalized)
+     normalized <- ifelse(arr>1, 0, normalized)
+     return(normalized)
+ }
+
+reclamacoes$sentimento_op30_quartil <- polarizeResultQuartil2(first_quantile_op30, third_quantile_op30)
+
+# reclamacoes sent
+polarizeResultQuartil3 <- function(Min, Max){
+     range = Max - Min
+     arr = (reclamacoes$sentimento_sent - Min)/range
+     normalized = 5 - ((arr*5) -0)
+     normalized <- ifelse(arr<0, 5, normalized)
+     normalized <- ifelse(arr>1, 0, normalized)
+     return(normalized)
+ }
+
+reclamacoes$sentimento_sent_quartil <- polarizeResultQuartil3(first_quantile_sent, third_quantile_sent)
 ```
 
-
-Calcula o erro por reclamação
+## Calculando o erro por reclamação
 
 ```{r}
 reclamacoes_l = reclamacoes_l %>% 
-    mutate(erro = (insatisfação - polaridade_normalizada)**2)
+    mutate(erro_usual = (insatisfação - polaridade_normalizada_usual)**2,
+           erro_quartil = (insatisfação - polaridade_normalizada_quartil)**2)
 ```
 
 
 ## EDA
 
 Inicial. Faça os gráficos a mais que achar necessário para entender os dados que temos de resultado.
+
+### Comparando os valores dos léxicos
 
 ```{r}
 reclamacoes %>% 
@@ -138,14 +183,53 @@ reclamacoes %>%
     geom_count(alpha = .7) 
 ```
 
+### Comparando os valores dos léxicos normalizados
+
+#### Normalização usual
+
+```{r}
+reclamacoes %>% 
+    ggplot(aes(x = sentimento_op30_usual, y = sentimento_sent_usual)) + 
+    geom_abline(slope = 1, intercept = 0, color = "grey") + 
+    geom_count(alpha = .7) 
+```
+
+### Normalização utilizando os quartis
+
+```{r}
+reclamacoes %>% 
+    ggplot(aes(x = sentimento_op30_quartil, y = sentimento_sent_quartil)) + 
+    geom_abline(slope = 1, intercept = 0, color = "grey") + 
+    geom_count(alpha = .7) 
+```
+
+### Erro e comparação das normalizações
+
+### Usual
+
 ```{r}
 reclamacoes_l %>% 
-    ggplot(aes(x = insatisfação, y = polaridade_normalizada, group = insatisfação)) + 
+    ggplot(aes(x = insatisfação, y = polaridade_normalizada_usual, group = insatisfação)) + 
     geom_jitter(alpha = .7)  + 
     facet_wrap(~ lexico)
 
 reclamacoes_l %>% 
-    ggplot(aes(x = insatisfação, y = erro, group = insatisfação)) + 
+    ggplot(aes(x = insatisfação, y = erro_quartil, group = insatisfação)) + 
+    geom_jitter(alpha = .5)  +
+    # geom_boxplo() + 
+    facet_wrap(~ lexico)
+```
+
+### Quartil
+
+```{r}
+reclamacoes_l %>% 
+    ggplot(aes(x = insatisfação, y = polaridade_normalizada_quartil, group = insatisfação)) + 
+    geom_jitter(alpha = .7)  + 
+    facet_wrap(~ lexico)
+
+reclamacoes_l %>% 
+    ggplot(aes(x = insatisfação, y = erro_quartil, group = insatisfação)) + 
     geom_jitter(alpha = .5)  +
     # geom_boxplo() + 
     facet_wrap(~ lexico)

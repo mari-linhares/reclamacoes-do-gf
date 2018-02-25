@@ -1,6 +1,8 @@
 ---
 title: "Analisa sentimentos das reclamações"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ```{r warning=FALSE}
@@ -11,26 +13,33 @@ library(lexiconPT)
 theme_set(theme_bw())
 ```
 
+## Buscando reclamações
+
 ```{r carrega}
 reclamacoes_raw = read_csv(here("data/reclamacoes-raw/reclamacoes-raw.csv"))
 
+# criando id
 reclamacoes = reclamacoes_raw %>% 
     mutate(id = 1:n())
+
+head(reclamacoes)
 ```
 
 O processo de estimativa será muito baseado em https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/ . 
+
+## Carregando os léxicos
 
 ```{r prepara_sentimento}
 data("oplexicon_v3.0")
 data("sentiLex_lem_PT02")
 
-op30 <- oplexicon_v3.0
-sent <- sentiLex_lem_PT02
+op30 <- oplexicon_v3.0  # tem 32191 palavras
+sent <- sentiLex_lem_PT02  # tem 7014 palavras
 
 glimpse(op30)
 ```
 
-Precisamos de um dataframe onde cada observação é uma palavra. 
+## Criando dataframe onde cada observação é uma palavra. 
 
 ```{r separa}
 palavra_a_palavra = reclamacoes %>% 
@@ -42,11 +51,17 @@ palavra_a_palavra %>%
   head(20)
 
 palavras_com_sentimento = palavra_a_palavra %>% 
-  left_join(op30 %>% select(term, op30 = polarity), by = c("termo" = "term")) %>% 
-  left_join(sent %>% select(term, sent = polarity), by = c("termo" = "term")) 
+  left_join(op30 %>% select(term, op30 = polarity, tipo_op30 = type), by = c("termo" = "term")) %>% 
+  left_join(sent %>% select(term, sent = polarity, tipo_sent = grammar_category), by = c("termo" = "term")) 
 ```
 
+# Cálculo da polaridade
+
+## Calculando por somatório simples
+
 Agora de fato calculamos qual a polaridade acumulada (via somatório) de cada reclamação e salvamos em um csv.
+
+Como foi feito originalmente aqui: https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/.
 
 ```{r calcula_sentimentos}
 sentimentos = palavras_com_sentimento %>% 
@@ -61,3 +76,31 @@ sentimentos %>%
     write_csv(here("data/sentimentos/sentimento.csv"))
 ```
 
+# Soma ponderada: Adjetivos tem peso maior que demais palavras
+
+Pensamos em fazer uma soma ponderada levando em conta se a palavra é um adjetivo ou não (de acordo com a denominação dos léxicos) já que adjetivos são geralmente mais significativos para determinar contentamento ou gravidade.
+
+Iremos fazer com que os adjetivos pesem 2x mais.
+
+```{r calcula_sentimentos_ponderados}
+peso = 2
+
+palavras_com_sentimento$peso_op30 = ifelse(palavras_com_sentimento$tipo_op30 == "adj", peso * palavras_com_sentimento$op30, palavras_com_sentimento$op30)
+
+palavras_com_sentimento$peso_sent = ifelse(palavras_com_sentimento$tipo_sent == "Adj", peso * palavras_com_sentimento$sent, palavras_com_sentimento$sent)
+```
+
+Calculando e salvando o resultado final.
+
+```{r calcula_sentimentos_ponderados}
+sentimentos_ponderados = palavras_com_sentimento %>% 
+    group_by(id) %>%
+    summarise(sentimento_op30 = sum(peso_op30, na.rm = TRUE),
+              palavras_op30 = sum(!is.na(peso_op30)),
+              sentimento_sent = sum(peso_sent, na.rm = TRUE), 
+              palavras_sent = sum(!is.na(peso_sent)), 
+              palavras = n())
+
+sentimentos_ponderados %>% 
+    write_csv(here("data/sentimentos/sentimento_ponderado.csv"))
+```
