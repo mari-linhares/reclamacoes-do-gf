@@ -46,5 +46,5 @@ A entrega pode ser acessada na pasta [/analise-eda/](/analise-eda/)
 - [x] boxplot das notas por reclamção;
 - [x] Boxplot do comprimento da reclamação por órgão;
 - [x] Órgãos com maior proporção de caps lock;
-- [x] Deixar nunitim;
-- [x] Adicionar textin.
+- [x] Deixar mais apresentável;
+- [x] Adicionar texto.
