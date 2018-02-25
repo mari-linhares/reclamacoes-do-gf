@@ -20,9 +20,9 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 ### Possíveis tasks
 
 - [ ] P2: Dividir a polaridade encontrada pelo número de palavras. (Se tiver muitas palavras e for muito positivo devido ao número de palavras será considerado não tão positivo).
-- [ ] P1: Normalização da Polaridade simplesmente normalizando entre 0 e 5
+- [x] P1: Normalização da Polaridade simplesmente normalizando entre 0 e 5
 - [ ] P1: Normalização da Polaridade colocar todas as palavras com polaridade positiva como gravidade 0
-- [ ] P1: Normalização da Polaridade normalizando de acordo com os quartis
+- [x] P1: Normalização da Polaridade normalizando de acordo com os quartis
 - [ ] P2: EDA: Gráficos
 - [ ] P0: Regressão múltipla: Há relação entre o léxico e a precisão/erro?
 - [x] P2: Tratamento do Texto (já foi feito por Nazareno)
