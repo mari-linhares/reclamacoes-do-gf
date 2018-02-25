@@ -25,8 +25,11 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 - [ ] P1: Normalização da Polaridade colocar todas as palavras com polaridade positiva como gravidade 0
 - [x] P1: Normalização da Polaridade normalizando de acordo com os quartis
 - [ ] P2: EDA: Gráficos
+- [ ] P1: Explicar melhor diferentes normalizações
 - [x] P0: Regressão múltipla: Há relação entre o léxico e a precisão/erro?
+- [ ] P1: Regressão múltipla: número de adjetivos como uma variável
 - [x] P2: Tratamento do Texto (já foi feito por Nazareno)
+
 
 **Dica** - o texto de resultado que queremos produzir é algo como: 
 
