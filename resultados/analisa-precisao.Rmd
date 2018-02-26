@@ -276,7 +276,23 @@ Regressão múltipla foi utilizada para analisar se o léxico, o número de pala
     * ministerio-da-saude: tem uma relação significativa com o erro (b = [1.203197276;	4.796453197], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~3 no erro.
     * ministerio-do-planejamento: tem uma relação significativa com o erro (b = [0.022871807;	3.102570180], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.56 no erro.
     * serpro-servico-federal-de-processamento-de-dados: tem uma relação significativa com o erro (b = [0.169012336;	3.337198225], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.75 no erro.
-
+    
+```{r}
+lexico_op30 = filter(reclamacoes_l, lexico=="sentimento_op30")
+model_erro_lex_adj_op30 = lm(erro_usual ~  quant_adj_op30 + palavras, data=lexico_op30)
+tidy(model_erro_lex_adj_op30, conf.int=T, conf.level=0.95)
+```
+```{r}
+glance(model_erro_lex_adj_op30)
+```
+```{r}
+lexico_sent = filter(reclamacoes_l, lexico=="sentimento_sent")
+model_erro_lex_adj_sent = lm(erro_usual ~  quant_adj_op30 + palavras, data=lexico_sent)
+tidy(model_erro_lex_adj_sent, conf.int=T, conf.level=0.95)
+```
+```{r}
+glance(model_erro_lex_adj_sent)
+```
 ```{r}
 reclamacoes_l = reclamacoes_l %>% # Adicionando predições do modelo ao dataframe
     add_predictions(model_erro_lex)
