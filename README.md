@@ -27,7 +27,7 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 - [ ] P2: EDA: Gráficos
 - [ ] P1: Explicar melhor diferentes normalizações
 - [x] P0: Regressão múltipla: Há relação entre o léxico e a precisão/erro?
-- [ ] P1: Regressão múltipla: número de adjetivos como uma variável
+- [x] P1: Regressão múltipla: número de adjetivos como uma variável
 - [x] P2: Tratamento do Texto (já foi feito por Nazareno)
 
 
