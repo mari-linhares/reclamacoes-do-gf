@@ -318,17 +318,21 @@ palavras_com_sentimento$peso_sent = ifelse(palavras_com_sentimento$tipo_sent == 
 <h3>Adiciona a quantidade de adjetivos aos data frames</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29udGFkb3JfYWRqX3NlbnQyID0gcGFsYXZyYXNfY29tX3NlbnRpbWVudG8gJT4lXG4gICAgbXV0YXRlKHRpcG9fcyA9IGlmZWxzZSh0aXBvX3NlbnQgPT0gXCJBZGpcIiwgMSwgMCApKVxuICAgIGdyb3VwX2J5KGlkKSAlPiVcbiAgICBzdW1tYXJpemUoY291bnQ9c3VtKHRpcG9fcykpXG5cbmBgYCJ9 -->
-<pre class="r"><code>contador_adj_sent2 = palavras_com_sentimento %&gt;%
-    mutate(tipo_s = ifelse(tipo_sent == &quot;Adj&quot;, 1, 0 ))
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuY29udGFkb3JfYWRqX29wMzAgPSBwYWxhdnJhc19jb21fc2VudGltZW50byAlPiVcbiAgICBtdXRhdGUodGlwb19vcCA9IGlmZWxzZShpcy5uYSh0aXBvX29wMzApIHwgdGlwb19vcDMwICE9IFwiYWRqXCIsIDAsIDEpKSAlPiVcbiAgICBncm91cF9ieShpZCkgJT4lXG4gICAgc3VtbWFyaXplKGNvdW50PXN1bSh0aXBvX29wKSlcbm5hbWVzKGNvbnRhZG9yX2Fkal9vcDMwKSA9IGMoXCJpZFwiLCBcInF1YW50X2Fkal9vcDMwXCIpXG5jb250YWRvcl9hZGpfc2VudCA9IHBhbGF2cmFzX2NvbV9zZW50aW1lbnRvICU+JVxuICAgIG11dGF0ZSh0aXBvX3MgPSBpZmVsc2UoaXMubmEodGlwb19zZW50KSB8IHRpcG9fc2VudCAhPSBcIkFkalwiLCAwLCAxKSkgJT4lXG4gICAgZ3JvdXBfYnkoaWQpICU+JVxuICAgIHN1bW1hcml6ZShjb3VudD1zdW0odGlwb19zKSlcbm5hbWVzKGNvbnRhZG9yX2Fkal9zZW50KSA9IGMoXCJpZFwiLCBcInF1YW50X2Fkal9zZW50XCIpXG5jb250YWRvcl9hZGogPSBtZXJnZShjb250YWRvcl9hZGpfb3AzMCwgY29udGFkb3JfYWRqX3NlbnQsIGJ5PVwiaWRcIilcbnNlbnRpbWVudG9zID0gbWVyZ2Uoc2VudGltZW50b3MsIGNvbnRhZG9yX2FkaiwgYnk9XCJpZFwiKVxuc2VudGltZW50b3NfcG9uZGVyYWRvcyA9IG1lcmdlKHNlbnRpbWVudG9zX3BvbmRlcmFkb3MsIGNvbnRhZG9yX2FkaiwgYnk9XCJpZFwiKVxuYGBgIn0= -->
+<pre class="r"><code>contador_adj_op30 = palavras_com_sentimento %&gt;%
+    mutate(tipo_op = ifelse(is.na(tipo_op30) | tipo_op30 != &quot;adj&quot;, 0, 1)) %&gt;%
+    group_by(id) %&gt;%
+    summarize(count=sum(tipo_op))
+names(contador_adj_op30) = c(&quot;id&quot;, &quot;quant_adj_op30&quot;)
+contador_adj_sent = palavras_com_sentimento %&gt;%
+    mutate(tipo_s = ifelse(is.na(tipo_sent) | tipo_sent != &quot;Adj&quot;, 0, 1)) %&gt;%
     group_by(id) %&gt;%
     summarize(count=sum(tipo_s))
-</code></pre>
+names(contador_adj_sent) = c(&quot;id&quot;, &quot;quant_adj_sent&quot;)
+contador_adj = merge(contador_adj_op30, contador_adj_sent, by=&quot;id&quot;)
+sentimentos = merge(sentimentos, contador_adj, by=&quot;id&quot;)
+sentimentos_ponderados = merge(sentimentos_ponderados, contador_adj, by=&quot;id&quot;)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gVXNlTWV0aG9kKFwiZ3JvdXBfYnlfXCIpIDogXG4gIG5vIGFwcGxpY2FibGUgbWV0aG9kIGZvciAnZ3JvdXBfYnlfJyBhcHBsaWVkIHRvIGFuIG9iamVjdCBvZiBjbGFzcyBcImZ1bmN0aW9uXCJcbiJ9 -->
-<pre><code>Error in UseMethod(&quot;group_by_&quot;) : 
-  no applicable method for 'group_by_' applied to an object of class &quot;function&quot;</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Escreve os CSVs de sentimentos e sentimentos_ponderados</p>

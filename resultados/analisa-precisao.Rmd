@@ -18,7 +18,53 @@ O governo recebe um grande número de reclamações e poderia gerenciar melhor s
 
 ## Pergunta
 
-Quão eficazes são métodos de análise de sentimento baseados em léxicos para estimar a insatisfação manifestada em reclamações recebidas pelo governo federal 
+**Quão eficazes são métodos de análise de sentimento baseados em léxicos para estimar a insatisfação manifestada em reclamações recebidas pelo governo federal?**
+
+## Resumo da nossa abordagem
+
+Para analisar a eficiência de léxicos em determinar insatisfação de uma reclamação do https://www.reclameaqui.com.br em relação ao Governo federal, comparamos o resultado dos mesmos com a avaliação de insatisfação dada por seres humanos.
+
+### EDA
+
+Realizamos uma EDA básica que pode ser vista ao longo dos notebooks, buscando responder perguntas como: quantas palavras os léxicos conseguem de fato identificar nas reclamações?
+
+### Calculando a insatisfação
+
+Para calcular a insatisfação pelo léxico tentamos várias abordagens:
+
+  1. Somatório simples das palavras identificadas pelo léxico.
+  2. Somatório ponderado sendo palavras que são adjetivos consideradas mais importantes (peso 2 vezes maior). 
+  3. Somatório simples / número de palavras identificadas pelo léxico.
+  4. Somatório ponderado / número de palavras identificadas pelo léxico.
+
+A implementação dessas abordagens e alguns outros tratamentos foram feitos no arquivo calcula-sentimentos.Rmd que pode ser acessado no nosso repositório git: https://github.com/mari-linhares/reclamacoes-do-gf.
+
+Como nesta análise não obtivemos grandes diferenças, mantivemos apenas a abordagem 1 e omitimos os resultados das demais análises para simplificação (porém essas podem ser obtidas no repositório git).
+
+### Normalizando a saída dos léxicos
+
+Para comparar os resultados dos léxicos, que consistia de números positivos e negativos, com a nota de insatisfação dada por pessoas, que estava numa escala entre 0 e 5, precisamos normalizar os dados dos léxicos. Para tal, utilizamos duas abordagens:
+
+  1. Fazer com que o menor resultado obtido de um léxico equivalesse a 5 e o maior a 0, com os valores intermediários seguindo a mesma proporção
+
+  2. Fazer com que o primeiro quartil e os valores abaixo dele equivalessem a 5,  o terceiro quartil e os valores acima dele equivalessem a 0, com os valores intermediários seguindo a mesma proporção.
+
+A primeira abordagem se mostrou mais coerente então a maior parte das análises foi feita com ela.
+
+### Regressão
+
+Após conferir e entender alguns dados sobre a resposta dos léxicos, calculamos os erros de cada combinação de léxico e forma de normalizar. Com este erro, geramos regressões lineares com: 
+
+  * Erro ← Léxico
+  * Erro ← Léxico + N° Palavras
+  * Erro ← Léxico + N° Palavras + Órgão
+  * Erro ← N° Palavras + N° Adjetivos + Nº de palavras conhecidas pelo léxico (uma regressão para cada léxico)
+ 
+### Conclusão
+
+Ao final, conseguimos observar que o léxico não parece influenciar no erro, mas em alguns modelos o número de palavras que uma reclamação possui e alguns órgãos parecem ter uma certa relação (embora o número de palavras tenha um efeito pouco relevante).
+
+Utilizando uma definição de acerto para os léxicos de que o léxico acertou se o erro foi menor que 1, obtivemos um acerto de 61% para o léxico sent e 58% para o léxico op30.
 
 ## Carregando os dados
 
@@ -128,7 +174,7 @@ polarizeResultQuartil <- function(Min, Max){
  }
 
 # reclamacoes long
-reclamacoes_l$polaridade_normalizada_quartil <-        ifelse(reclamacoes_l$lexico=="sentimento_op30", polarizeResultQuartil(first_quantile_op30, third_quantile_op30), polarizeResultQuartil(first_quantile_sent, third_quantile_sent))
+reclamacoes_l$polaridade_normalizada_quartil <- ifelse(reclamacoes_l$lexico=="sentimento_op30", polarizeResultQuartil(first_quantile_op30, third_quantile_op30), polarizeResultQuartil(first_quantile_sent, third_quantile_sent))
 
 # reclamacoes op30
 polarizeResultQuartil2 <- function(Min, Max){
@@ -238,6 +284,10 @@ tidy(model_erro_lex, conf.int = TRUE, conf.level = 0.95)
 glance(model_erro_lex)
 ```
 
+Regressão simples foi utilizada para analisar se o léxico tem uma associação significativa com o erro na estimativa de instatisfação da reclamação. Os resultados da regressão indicam que um modelo com os preditores no formato Erro = X1.léxico explicam basicamente nada da variância da variável de resposta (R² = 0.0008613828).
+  
+  * léxico: medida como fator (0 ou 1) tem uma relação não significativa com o erro (b = [-0.664799; 0.3888652], IC com 95%). Não podemos afirmar se um léxico é "melhor" que o outro para estes dados usando este modelo.
+
 Pelos resultados do p.value, cujo alpha está bem acima de 0.05, e do intervalo de confiança, que inclue 0, não parece haver relação entre o léxico e o erro. 
 
 ### Considerando o léxico e o número de palavras
@@ -272,19 +322,35 @@ Regressão múltipla foi utilizada para analisar se o léxico, o número de pala
   * palavras: medida como unidade tem uma relação significativa com o erro (b = [0.003598035; 0.006104555], IC com 95%). Adicionar mais uma palavra ao texto faz com que o erro cresça ligeiramente, mais especificamente cerca de 0.005.
 
   * órgãos: para cada órgão foi criada uma variável medida como fator (0 ou 1), como são muitas variáveis vamos comentar apenas as que tem relação significativa.
-    * inss-ministerio-da-previdencia-social: tem uma relação significativa com o erro (b = [0.251654415; 3.477687808], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.84 no erro.
-    * ministerio-da-saude: tem uma relação significativa com o erro (b = [1.203197276;	4.796453197], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~3 no erro.
-    * ministerio-do-planejamento: tem uma relação significativa com o erro (b = [0.022871807;	3.102570180], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.56 no erro.
-    * serpro-servico-federal-de-processamento-de-dados: tem uma relação significativa com o erro (b = [0.169012336;	3.337198225], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.75 no erro.
-    
+    * inss-ministerio-da-previdencia-social: tem uma relação significativa positiva com o erro (b = [0.251654415; 3.477687808], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.84 no erro.
+    * ministerio-da-saude: tem uma relação significativa positiva com o erro (b = [1.203197276;	4.796453197], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~3 no erro.
+    * ministerio-do-planejamento: tem uma relação significativa positiva com o erro (b = [0.022871807;	3.102570180], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.56 no erro.
+    * serpro-servico-federal-de-processamento-de-dados: tem uma relação significativa positiva com o erro (b = [0.169012336;	3.337198225], IC com 95%). Ser uma reclamação relacionada ao inss produz uma mudança de ~1.75 no erro.
+
+### Considerando o número de palavras, quantidade de palavras conhecidas pelo léxico e quantidade de adjetivos nas reclamações
+
+Para está regressão iremos considerar cada léxico separadamente a fim de estudar os efeitos do número de palavras (palavras), quantidade de palavras conhecidas pelo léxico na reclamação (palavras_<lexico>) e quantidade de adjetivos nas reclamações de acordo com os léxicos (quant_adj_<lexico>).
+
+#### Léxico op30
+
 ```{r}
 lexico_op30 = filter(reclamacoes_l, lexico=="sentimento_op30")
 model_erro_lex_adj_op30 = lm(erro_usual ~ quant_adj_op30 + palavras + palavras_op30, data=lexico_op30)
 tidy(model_erro_lex_adj_op30, conf.int=T, conf.level=0.95)
 ```
+
 ```{r}
 glance(model_erro_lex_adj_op30)
 ```
+
+O resultado explica ~22% da variância da variável de resposta (R²=0.2248284).
+
+*  quant_adj_op30: medida como unidade; tem uma relação não significativa com o erro (b = [-0.205082803; 0.07024863], IC com 95%).
+*  palavras: medida como unidade; tem uma relação significativa positiva com o erro (b = [0.003913831; 0.01925003], IC com 95%). De acordo com o modelo a cada palavra adicionada o erro aumenta ~0.012.
+*  palavras_op30: medida como unidade; tem uma relação não significativa com o erro (b = [-0.113361807;	0.11256429], IC com 95%).
+
+#### Léxico sent
+
 ```{r}
 lexico_sent = filter(reclamacoes_l, lexico=="sentimento_sent")
 model_erro_lex_adj_sent = lm(erro_usual ~  quant_adj_sent + palavras + palavras_sent, data=lexico_sent)
@@ -293,22 +359,73 @@ tidy(model_erro_lex_adj_sent, conf.int=T, conf.level=0.95)
 ```{r}
 glance(model_erro_lex_adj_sent)
 ```
-### Considerando o número de palavras, quantidade de palavras do léxico e quantidade de adjetivos do léxico
 
-Como resultado dessa regressão temos que essa variáveis não parecem ter uma associação significativa no valor do erro, pois o medelo Erro = X1.quantidade_de_adj_do_lexico + X2.palavras + palavras_do_lexico.
+O resultado explica ~19% da variância da variável de resposta (R²=0.1994397).
 
-#### Léxico op30
-O resultado explica ~25.8% da variância da variável de resposta (R²=0.2580945).
+* quant_adj_sent: diferentemente dos resultados do léxico op30, a quantidade de adjetivos tem uma relação significativa positiva com o erro (b = [0.110148620; 0.526963598], IC com 95%). Temos que a cada adjetivo a mais na reclamação o valor do erro deve aumentar por volta de ~0.31.
+*  palavras: medida como unidade; tem uma relação significativa positiva com o erro (b = [0.000176915; 0.006112659], IC com 95%). De acordo com o modelo a cada palavra adicionada o erro aumenta ~0.003.
+*  palavras_sent: medida como unidade; tem uma relação significativa negativa com o erro (b = [-0.380057430;	-0.025314061], IC com 95%). Esse resultado é interessante pois indica que se adicionarmos uma palavra conhecida (do léxico) a reclamação o erro tende a diminuir em ~0.2 unidades.
 
-*  palavras_do_lexico: o fato de haver uma palavra a mais ou a menos reconhecida pelo léxico não parece afetar o valor do erro (b = [-0.116825546, 0.12650747], IC com 95%).
-*  quantidade_de_adj_do_lexico: também não parece influenciar no valor do erro (b = [-0.233012935, 0.06500904], IC com 95%).
-*  palavras: medida como unidade novamente nessa regressão ainda vemos uma influência ainda maior no valor do erro, (b = [0.004532165, 0.02076506], IC com 95%). Nessa regressão temos que adicionar uma palavra faz com que o erro aumente ~0.012.
+# Podemos Utilizar os léxicos para avaliar insatisfação humana em uma reclamação?
 
+Para responder tal pergunta, definimos que um léxico "acerta" o nível de insatisfação quando seu erro é igual ou menor que 1. Com isso, calculamos a porcentagem de acerto de cada léxico com forma de normalização.
 
-#### Léxico sent
-O resultado explica ~25.6% da variância da variável de resposta (R² = 0.2568307)
+```{r}
+total_op30 = reclamacoes_l %>%
+    filter(lexico == "sentimento_op30") %>%
+    count()
+hits_usual_op30 = reclamacoes_l %>%
+    filter(lexico == "sentimento_op30") %>%
+    filter(erro_usual <= 1) %>%
+    count()
+hits_quart_op30 = reclamacoes_l %>%
+    filter(lexico == "sentimento_op30") %>%
+    filter(erro_quartil <= 1) %>%
+    count()
 
-* palavras_do_lexico: diferentemente dos resultados do léxico op30, a quantidade de palavras do léxico sent parece alterar o valor do erro (b = [-0.4593449105, -0.086640290], IC com 95%). Temos que a cada palavra a mais que o léxico reconhece o valor do erro deve diminuir por volta de ~0.273.
-* quantidade_de_adj_do_lexico: em contra partida ao resultado positivo (redução do erro do léxico) na utilização da variável independente palavras_do_lexico, tempo que a adição de um adjetivo que o léxico reconhece aumenta ligeiramente o valor do erro (por volta de ~0.433, sendo b = [0.2057182644, 0.660030044], IC com 95%).
-* palavras: a quantidade de palavras da reclamação parece ter um impacto inferior comparado ao resultado obtido na regressão do léxico op30 (b = [0.0001938856, 0.006323553], IC com 95%), aumentando o valor do erro em ~0.0032.
+total_sent = reclamacoes_l %>%
+    filter(lexico == "sentimento_sent") %>%
+    count()
+hits_usual_sent = reclamacoes_l %>%
+    filter(lexico == "sentimento_sent") %>%
+    filter(erro_usual <= 1) %>%
+    count()
+hits_quart_sent = reclamacoes_l %>%
+    filter(lexico == "sentimento_sent") %>%
+    filter(erro_quartil <= 1) %>%
+    count()
 
+sprintf("Porcentagem de hits OP30 (Usual): %f", hits_usual_op30/total_op30)
+sprintf("Porcentagem de hits OP30 (Quartil): %f", hits_quart_op30/total_op30)
+sprintf("Porcentagem de hits Sent (Usual): %f", hits_usual_sent/total_sent)
+sprintf("Porcentagem de hits Sent (Quartil): %f", hits_quart_sent/total_sent)
+    
+```
+
+Com tais resultados concluímos duas coisas: A primeira que a utilização da normalização usual foi bem melhor que as dos quartis para os nossos dados. A segunda coisa foi que o léxico acerta o nível de insatisfação em cerca de 60% das reclamações, acertando cerca de 3 a cada 5 reclamações.
+
+> obs: por algum motivo no knit hits sent = hits op30, porem rodando localmente vimos que hits sent = 0.610687. Devido ao tempo não conseguimos investigar a fundo o motivo da diferença.
+
+### Porcentagem de palavras identificadas pelos léxicos
+
+No gráfico abaixo verificamos um histograma da porcentagem de palavras identificadas pelos léxicos.
+
+#### Lexico sent
+
+```{r, fig.width = 12, fig.height = 10}
+ggplot(data=lexico_op30, aes(lexico_sent$palavras_sent/palavras)) + 
+  geom_histogram(bins = 30, color="darkblue", fill="lightblue") +
+  labs(x="Porcentagem de palavras identificadas pelo lexico", y="Reclamações com esse número") + scale_y_continuous(breaks=seq(0, 250, 10)) +
+  scale_x_continuous(breaks=seq(0, 0.5, 0.05))
+```
+
+#### Lexico op30
+
+```{r, fig.width = 12, fig.height = 10}
+ggplot(data=lexico_sent, aes(lexico_op30$palavras_op30/palavras)) + 
+  geom_histogram(bins = 30, color="darkblue", fill="lightblue") +
+  labs(x="Porcentagem de palavras identificadas pelo lexico", y="Reclamações com esse número") + scale_y_continuous(breaks=seq(0, 250, 10)) +
+  scale_x_continuous(breaks=seq(0, 0.5, 0.05))
+```
+
+A partir dos gráficos acima observamos que o léxico op30 para a maioria das reclamações identifica cerca de 15% das palavras, já o ĺéxico sent na maioria das vezes identifica apenas 5% das palavras, mas mesmo assim ambos obtiveram uma taxa de acerto bastante similar e os modelos não identificaram os léxicos como sendo significativos para o erro.

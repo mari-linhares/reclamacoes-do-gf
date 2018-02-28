@@ -136,6 +136,8 @@ library(here)</code></pre>
 <pre><code>## here() starts at /home/marianne-linhares/reclamacoes-do-gf</code></pre>
 <pre class="r"><code>library(lexiconPT)
 theme_set(theme_bw())</code></pre>
+<div id="buscando-reclamacoes" class="section level2">
+<h2>Buscando reclamações</h2>
 <pre class="r"><code>reclamacoes_raw = read_csv(here(&quot;data/reclamacoes-raw/reclamacoes-raw.csv&quot;))</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
@@ -144,14 +146,31 @@ theme_set(theme_bw())</code></pre>
 ##   titulo = col_character(),
 ##   reclamacao = col_character()
 ## )</code></pre>
-<pre class="r"><code>reclamacoes = reclamacoes_raw %&gt;% 
-    mutate(id = 1:n())</code></pre>
+<pre class="r"><code># criando id
+reclamacoes = reclamacoes_raw %&gt;% 
+    mutate(id = 1:n())
+
+head(reclamacoes)</code></pre>
+<pre><code>## # A tibble: 6 x 5
+##                              orgao
+##                              &lt;chr&gt;
+## 1 http://http://www.cultura.gov.br
+## 2 http://http://www.cultura.gov.br
+## 3 http://http://www.cultura.gov.br
+## 4 http://http://www.cultura.gov.br
+## 5 http://http://www.cultura.gov.br
+## 6 http://http://www.cultura.gov.br
+## # ... with 4 more variables: link &lt;chr&gt;, titulo &lt;chr&gt;, reclamacao &lt;chr&gt;,
+## #   id &lt;int&gt;</code></pre>
 <p>O processo de estimativa será muito baseado em <a href="https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/" class="uri">https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/</a> .</p>
+</div>
+<div id="carregando-os-lexicos" class="section level2">
+<h2>Carregando os léxicos</h2>
 <pre class="r"><code>data(&quot;oplexicon_v3.0&quot;)
 data(&quot;sentiLex_lem_PT02&quot;)
 
-op30 &lt;- oplexicon_v3.0
-sent &lt;- sentiLex_lem_PT02
+op30 &lt;- oplexicon_v3.0  # tem 32191 palavras
+sent &lt;- sentiLex_lem_PT02  # tem 7014 palavras
 
 glimpse(op30)</code></pre>
 <pre><code>## Observations: 32,191
@@ -160,7 +179,9 @@ glimpse(op30)</code></pre>
 ## $ type              &lt;chr&gt; &quot;emot&quot;, &quot;emot&quot;, &quot;emot&quot;, &quot;emot&quot;, &quot;emot&quot;, &quot;emo...
 ## $ polarity          &lt;int&gt; -1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, ...
 ## $ polarity_revision &lt;chr&gt; &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;, &quot;A&quot;,...</code></pre>
-<p>Precisamos de um dataframe onde cada observação é uma palavra.</p>
+</div>
+<div id="criando-dataframe-onde-cada-observacao-e-uma-palavra." class="section level2">
+<h2>Criando dataframe onde cada observação é uma palavra.</h2>
 <pre class="r"><code>palavra_a_palavra = reclamacoes %&gt;% 
     select(id, reclamacao) %&gt;% 
     unnest_tokens(termo, reclamacao)
@@ -192,19 +213,69 @@ palavra_a_palavra %&gt;%
 ## 19     1     leitte
 ## 20     1    reitero</code></pre>
 <pre class="r"><code>palavras_com_sentimento = palavra_a_palavra %&gt;% 
-  left_join(op30 %&gt;% select(term, op30 = polarity), by = c(&quot;termo&quot; = &quot;term&quot;)) %&gt;% 
-  left_join(sent %&gt;% select(term, sent = polarity), by = c(&quot;termo&quot; = &quot;term&quot;)) </code></pre>
+  left_join(op30 %&gt;% select(term, op30 = polarity, tipo_op30 = type), by = c(&quot;termo&quot; = &quot;term&quot;)) %&gt;% 
+  left_join(sent %&gt;% select(term, sent = polarity, tipo_sent = grammar_category), by = c(&quot;termo&quot; = &quot;term&quot;)) </code></pre>
+</div>
+<div id="calculo-da-polaridade" class="section level1">
+<h1>Cálculo da polaridade</h1>
+<div id="calculando-por-somatorio-simples" class="section level2">
+<h2>Calculando por somatório simples</h2>
 <p>Agora de fato calculamos qual a polaridade acumulada (via somatório) de cada reclamação e salvamos em um csv.</p>
+<p>Como foi feito originalmente aqui: <a href="https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/" class="uri">https://sillasgonzaga.github.io/2017-09-23-sensacionalista-pt01/</a>.</p>
 <pre class="r"><code>sentimentos = palavras_com_sentimento %&gt;% 
     group_by(id) %&gt;%
     summarise(sentimento_op30 = sum(op30, na.rm = TRUE),
               palavras_op30 = sum(!is.na(op30)),
               sentimento_sent = sum(sent, na.rm = TRUE), 
               palavras_sent = sum(!is.na(sent)), 
-              palavras = n())
+              palavras = n())</code></pre>
+</div>
+</div>
+<div id="soma-ponderada-adjetivos-tem-peso-maior-que-demais-palavras" class="section level1">
+<h1>Soma ponderada: Adjetivos tem peso maior que demais palavras</h1>
+<p>Pensamos em fazer uma soma ponderada levando em conta se a palavra é um adjetivo ou não (de acordo com a denominação dos léxicos) já que adjetivos são geralmente mais significativos para determinar contentamento ou gravidade.</p>
+<p>Iremos fazer com que os adjetivos pesem 2x mais.</p>
+<pre class="r"><code>peso = 2
 
-sentimentos %&gt;% 
-    write_csv(here(&quot;data/sentimentos/sentimento.csv&quot;))</code></pre>
+palavras_com_sentimento$peso_op30 = ifelse(palavras_com_sentimento$tipo_op30 == &quot;adj&quot;, peso * palavras_com_sentimento$op30, palavras_com_sentimento$op30)
+
+palavras_com_sentimento$peso_sent = ifelse(palavras_com_sentimento$tipo_sent == &quot;Adj&quot;, peso * palavras_com_sentimento$sent, palavras_com_sentimento$sent)</code></pre>
+<p>Calculando e salvando o resultado final.</p>
+<pre class="r"><code>sentimentos_ponderados = palavras_com_sentimento %&gt;% 
+    group_by(id) %&gt;%
+    summarise(sentimento_op30 = sum(peso_op30, na.rm = TRUE),
+              palavras_op30 = sum(!is.na(peso_op30)),
+              sentimento_sent = sum(peso_sent, na.rm = TRUE), 
+              palavras_sent = sum(!is.na(peso_sent)), 
+              palavras = n())</code></pre>
+<div id="adiciona-a-quantidade-de-adjetivos-aos-data-frames" class="section level3">
+<h3>Adiciona a quantidade de adjetivos aos data frames</h3>
+<pre class="r"><code>contador_adj_op30 = palavras_com_sentimento %&gt;%
+    mutate(tipo_op = ifelse(is.na(tipo_op30) | tipo_op30 != &quot;adj&quot;, 0, 1)) %&gt;%
+    group_by(id) %&gt;%
+    summarize(count=sum(tipo_op))
+
+names(contador_adj_op30) = c(&quot;id&quot;, &quot;quant_adj_op30&quot;)
+
+contador_adj_sent = palavras_com_sentimento %&gt;%
+    mutate(tipo_s = ifelse(is.na(tipo_sent) | tipo_sent != &quot;Adj&quot;, 0, 1)) %&gt;%
+    group_by(id) %&gt;%
+    summarize(count=sum(tipo_s))
+
+names(contador_adj_sent) = c(&quot;id&quot;, &quot;quant_adj_sent&quot;)
+
+contador_adj = merge(contador_adj_op30, contador_adj_sent, by=&quot;id&quot;)
+
+sentimentos = merge(sentimentos, contador_adj, by=&quot;id&quot;)
+sentimentos_ponderados = merge(sentimentos_ponderados, contador_adj, by=&quot;id&quot;)</code></pre>
+<p>Escreve os CSVs de sentimentos e sentimentos_ponderados</p>
+<pre class="r"><code>sentimentos %&gt;% 
+    write_csv(here(&quot;data/sentimentos/sentimento.csv&quot;))
+
+sentimentos_ponderados %&gt;% 
+    write_csv(here(&quot;data/sentimentos/sentimento_ponderado.csv&quot;))</code></pre>
+</div>
+</div>
 
 
 
