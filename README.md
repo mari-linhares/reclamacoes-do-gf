@@ -12,6 +12,10 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 
 ## TODO Regressão
 
+### Entrega
+
+Pode ser acessada aqui: https://rpubs.com/mariannelm/reclame-aqui-reg.
+
 ### Possíveis tasks em calcula-Sentimentos.Rmd
 
 - [x] P1: Ponderar polaridade de acordo com adjetivos. (Adjetivos tem peso maior por geralmente serem mais significativos para determinar contentamento ou gravidade.)
