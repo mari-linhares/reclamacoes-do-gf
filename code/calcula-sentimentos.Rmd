@@ -80,7 +80,7 @@ Pensamos em fazer uma soma ponderada levando em conta se a palavra é um adjetiv
 
 Iremos fazer com que os adjetivos pesem 2x mais.
 
-```{r calcula_sentimentos_ponderados}
+```{r pondera_dados}
 peso = 2
 
 palavras_com_sentimento$peso_op30 = ifelse(palavras_com_sentimento$tipo_op30 == "adj", peso * palavras_com_sentimento$op30, palavras_com_sentimento$op30)
@@ -98,33 +98,34 @@ sentimentos_ponderados = palavras_com_sentimento %>%
               sentimento_sent = sum(peso_sent, na.rm = TRUE), 
               palavras_sent = sum(!is.na(peso_sent)), 
               palavras = n())
-
 ```
 
-Adiciona a quantidade de adjetivos aos data frames sentimentos e sentimentos_ponderados
+###  Adiciona a quantidade de adjetivos aos data frames
+
 ```{r}
 contador_adj_op30 = palavras_com_sentimento %>%
-	filter(tolower(tipo_op30) == "adj") %>%
-    count(id)
+    mutate(tipo_op = ifelse(is.na(tipo_op30) | tipo_op30 != "adj", 0, 1)) %>%
+    group_by(id) %>%
+    summarize(count=sum(tipo_op))
 
 names(contador_adj_op30) = c("id", "quant_adj_op30")
 
 contador_adj_sent = palavras_com_sentimento %>%
-	filter(tolower(tipo_sent) == "adj") %>%
-    count(id)
+    mutate(tipo_s = ifelse(is.na(tipo_sent) | tipo_sent != "Adj", 0, 1)) %>%
+    group_by(id) %>%
+    summarize(count=sum(tipo_s))
+
 names(contador_adj_sent) = c("id", "quant_adj_sent")
 
 contador_adj = merge(contador_adj_op30, contador_adj_sent, by="id")
 
 sentimentos = merge(sentimentos, contador_adj, by="id")
 sentimentos_ponderados = merge(sentimentos_ponderados, contador_adj, by="id")
-	
 ```
 
-
 Escreve os CSVs de sentimentos e sentimentos_ponderados
-```{r}
 
+```{r}
 sentimentos %>% 
     write_csv(here("data/sentimentos/sentimento.csv"))
 
