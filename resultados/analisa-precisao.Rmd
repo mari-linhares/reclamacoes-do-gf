@@ -204,9 +204,13 @@ reclamacoes$sentimento_sent_quartil <- polarizeResultQuartil3(first_quantile_sen
 ## Calculando o erro por reclamação
 
 ```{r}
+reclamacoes_l$media <- 2.5
+reclamacoes_l$random <- sample(5, size = nrow(reclamacoes_l), replace = TRUE)
 reclamacoes_l = reclamacoes_l %>%
     mutate(erro_usual = (insatisfação - polaridade_normalizada_usual)**2,
-           erro_quartil = (insatisfação - polaridade_normalizada_quartil)**2)
+           erro_quartil = (insatisfação - polaridade_normalizada_quartil)**2,
+           erro_media = (insatisfação - media) ** 2,
+           erro_random = (insatisfação - random) ** 2)
 ```
 
 ## EDA - Verificando os resultados
@@ -399,7 +403,18 @@ sprintf("Porcentagem de hits OP30 (Usual): %f", hits_usual_op30/total_op30)
 sprintf("Porcentagem de hits OP30 (Quartil): %f", hits_quart_op30/total_op30)
 sprintf("Porcentagem de hits Sent (Usual): %f", hits_usual_sent/total_sent)
 sprintf("Porcentagem de hits Sent (Quartil): %f", hits_quart_sent/total_sent)
-    
+
+hits_media = reclamacoes_l %>%
+    filter(erro_media <= 1) %>%
+    count()
+
+hits_random = reclamacoes_l %>%
+    filter(erro_random <= 1) %>%
+    count()
+
+
+sprintf("Porcentagem de hits Media: %f", hits_media/nrow(reclamacoes_l))
+sprintf("Porcentagem de hits Random: %f", hits_random/nrow(reclamacoes_l))   
 ```
 
 Com tais resultados concluímos duas coisas: A primeira que a utilização da normalização usual foi bem melhor que as dos quartis para os nossos dados. A segunda coisa foi que o léxico acerta o nível de insatisfação em cerca de 60% das reclamações, acertando cerca de 3 a cada 5 reclamações.
