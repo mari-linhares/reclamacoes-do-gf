@@ -12,6 +12,10 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 
 ## TODO Regressão
 
+### Entrega
+
+Pode ser acessada aqui: https://rpubs.com/mariannelm/reclame-aqui-reg.
+
 ### Possíveis tasks em calcula-Sentimentos.Rmd
 
 - [x] P1: Ponderar polaridade de acordo com adjetivos. (Adjetivos tem peso maior por geralmente serem mais significativos para determinar contentamento ou gravidade.)
@@ -24,8 +28,8 @@ Análise da precisão de métodos de análise de sentimentos para estimar o grau
 - [x] P1: Normalização da Polaridade simplesmente normalizando entre 0 e 5
 - [ ] P1: Normalização da Polaridade colocar todas as palavras com polaridade positiva como gravidade 0
 - [x] P1: Normalização da Polaridade normalizando de acordo com os quartis
-- [ ] P2: EDA: Gráficos
-- [ ] P1: Explicar melhor diferentes normalizações
+- [x] P2: EDA: Gráficos
+- [x] P1: Explicar melhor diferentes normalizações
 - [x] P0: Regressão múltipla: Há relação entre o léxico e a precisão/erro?
 - [x] P1: Regressão múltipla: número de adjetivos como uma variável
 - [x] P2: Tratamento do Texto (já foi feito por Nazareno)
